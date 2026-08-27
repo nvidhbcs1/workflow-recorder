@@ -20,15 +20,21 @@ public sealed class InputHookService : IDisposable
     private const int WmRButtonDown = 0x0204;
     private const int WmMButtonDown = 0x0207;
     private const int WmMouseMove = 0x0200;
+    private const uint WmQuit = 0x0012;
+    private const uint PmNoRemove = 0x0000;
 
     private readonly HashSet<int> _pressed = [];
     private readonly HookProc _mouseProc;
     private readonly HookProc _keyboardProc;
+    private readonly ManualResetEventSlim _hookReady = new(false);
     private PointerSample? _pathStart;
     private PointerSample? _pathLast;
     private double _pathDistance;
     private nint _mouseHook;
     private nint _keyboardHook;
+    private Thread? _hookThread;
+    private uint _hookThreadId;
+    private Exception? _startFailure;
     private bool _disposed;
 
     public event EventHandler<MouseClickEvent>? MouseClicked;
@@ -44,39 +50,97 @@ public sealed class InputHookService : IDisposable
     public void Start()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        if (_mouseHook != 0 || _keyboardHook != 0)
+        if (_hookThread is not null)
         {
             return;
         }
 
-        using var process = Process.GetCurrentProcess();
-        using var module = process.MainModule;
-        var moduleHandle = GetModuleHandle(module?.ModuleName);
-        _mouseHook = SetWindowsHookEx(WhMouseLl, _mouseProc, moduleHandle, 0);
-        _keyboardHook = SetWindowsHookEx(WhKeyboardLl, _keyboardProc, moduleHandle, 0);
-        if (_mouseHook == 0 || _keyboardHook == 0)
+        _startFailure = null;
+        _hookReady.Reset();
+        _hookThread = new Thread(RunHookLoop)
+        {
+            IsBackground = true,
+            Name = "Workflow Recorder input hooks"
+        };
+        _hookThread.Start();
+
+        if (!_hookReady.Wait(TimeSpan.FromSeconds(5)))
         {
             Stop();
-            throw new InvalidOperationException($"Unable to install input hooks. Win32 error: {Marshal.GetLastWin32Error()}");
+            throw new TimeoutException("Timed out while starting Windows input hooks.");
+        }
+        if (_startFailure is not null)
+        {
+            var failure = _startFailure;
+            Stop();
+            throw new InvalidOperationException("Unable to install Windows input hooks.", failure);
         }
     }
 
     public void Stop()
     {
-        if (_mouseHook != 0)
+        var thread = _hookThread;
+        var threadId = _hookThreadId;
+        if (thread is not null && threadId != 0)
         {
-            UnhookWindowsHookEx(_mouseHook);
-            _mouseHook = 0;
+            PostThreadMessage(threadId, WmQuit, 0, 0);
         }
-        if (_keyboardHook != 0)
+        if (thread is not null && thread != Thread.CurrentThread)
         {
-            UnhookWindowsHookEx(_keyboardHook);
-            _keyboardHook = 0;
+            thread.Join(TimeSpan.FromSeconds(2));
         }
+        _hookThread = null;
         _pressed.Clear();
         _pathStart = null;
         _pathLast = null;
         _pathDistance = 0;
+    }
+
+    private void RunHookLoop()
+    {
+        try
+        {
+            _hookThreadId = GetCurrentThreadId();
+            // Calling PeekMessage first creates this thread's message queue before Stop can post WM_QUIT.
+            PeekMessage(out _, 0, 0, 0, PmNoRemove);
+
+            using var process = Process.GetCurrentProcess();
+            using var module = process.MainModule;
+            var moduleHandle = GetModuleHandle(module?.ModuleName);
+            _mouseHook = SetWindowsHookEx(WhMouseLl, _mouseProc, moduleHandle, 0);
+            _keyboardHook = SetWindowsHookEx(WhKeyboardLl, _keyboardProc, moduleHandle, 0);
+            if (_mouseHook == 0 || _keyboardHook == 0)
+            {
+                throw new InvalidOperationException($"Win32 error: {Marshal.GetLastWin32Error()}");
+            }
+
+            _hookReady.Set();
+            while (GetMessage(out var message, 0, 0, 0) > 0)
+            {
+                TranslateMessage(ref message);
+                DispatchMessage(ref message);
+            }
+        }
+        catch (Exception error)
+        {
+            _startFailure = error;
+            _hookReady.Set();
+        }
+        finally
+        {
+            if (_mouseHook != 0)
+            {
+                UnhookWindowsHookEx(_mouseHook);
+                _mouseHook = 0;
+            }
+            if (_keyboardHook != 0)
+            {
+                UnhookWindowsHookEx(_keyboardHook);
+                _keyboardHook = 0;
+            }
+            _hookThreadId = 0;
+            _hookReady.Set();
+        }
     }
 
     private nint MouseCallback(int code, nint message, nint parameter)
@@ -264,6 +328,18 @@ public sealed class InputHookService : IDisposable
         public nint ExtraInfo;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeMessage
+    {
+        public nint Hwnd;
+        public uint Message;
+        public nuint WParam;
+        public nint LParam;
+        public uint Time;
+        public NativePoint Point;
+        public uint Private;
+    }
+
     [DllImport("user32.dll", SetLastError = true)]
     private static extern nint SetWindowsHookEx(int hookId, HookProc callback, nint module, uint threadId);
 
@@ -278,4 +354,22 @@ public sealed class InputHookService : IDisposable
 
     [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
     private static extern nint GetModuleHandle(string? moduleName);
+
+    [DllImport("kernel32.dll")]
+    private static extern uint GetCurrentThreadId();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool PostThreadMessage(uint threadId, uint message, nuint wParam, nint lParam);
+
+    [DllImport("user32.dll")]
+    private static extern int GetMessage(out NativeMessage message, nint window, uint minFilter, uint maxFilter);
+
+    [DllImport("user32.dll")]
+    private static extern bool PeekMessage(out NativeMessage message, nint window, uint minFilter, uint maxFilter, uint removeMessage);
+
+    [DllImport("user32.dll")]
+    private static extern bool TranslateMessage(ref NativeMessage message);
+
+    [DllImport("user32.dll")]
+    private static extern nint DispatchMessage(ref NativeMessage message);
 }
