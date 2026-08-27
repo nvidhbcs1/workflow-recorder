@@ -1,0 +1,11 @@
+bin/
+obj/
+dist/
+transfer/
+evaluation/
+tests/artifacts/
+*.user
+*.pdb
+*.zip
+obj.preprocessed.xml
+.vs/

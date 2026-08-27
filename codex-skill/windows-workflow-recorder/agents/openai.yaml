@@ -1,0 +1,4 @@
+interface:
+  display_name: "Windows Workflow Recorder"
+  short_description: "Turn Windows activity into docs and skills"
+  default_prompt: "Use $windows-workflow-recorder to inspect my latest recording and tell me where I left off."

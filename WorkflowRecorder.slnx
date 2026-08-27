@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/WorkflowRecorder.App/WorkflowRecorder.App.csproj" />
+    <Project Path="src/WorkflowRecorder.Cli/WorkflowRecorder.Cli.csproj" />
+    <Project Path="src/WorkflowRecorder.Core/WorkflowRecorder.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/WorkflowRecorder.SmokeTests/WorkflowRecorder.SmokeTests.csproj" />
+  </Folder>
+</Solution>

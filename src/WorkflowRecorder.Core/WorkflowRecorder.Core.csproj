@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="UIAutomationClient">
+      <HintPath>$(NetCoreTargetingPackRoot)\Microsoft.WindowsDesktop.App.Ref\8.0.28\ref\net8.0\UIAutomationClient.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UIAutomationTypes">
+      <HintPath>$(NetCoreTargetingPackRoot)\Microsoft.WindowsDesktop.App.Ref\8.0.28\ref\net8.0\UIAutomationTypes.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>
