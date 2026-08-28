@@ -1,8 +1,8 @@
 # Workflow Recorder for Windows
 
-[![CI](https://github.com/OWNER/WorkflowRecorder/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/WorkflowRecorder/actions/workflows/ci.yml)
-
-> Replace `OWNER/WorkflowRecorder` in the badge URL after creating the public repository.
+<p align="center">
+  <img src="assets/workflow-recorder-logo.png" width="220" alt="Workflow Recorder logo">
+</p>
 
 Workflow Recorder captures enough context to turn a Windows workflow into useful documentation and a reusable Codex skill without recording a continuous video or saving ordinary typed text.
 
