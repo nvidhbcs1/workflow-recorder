@@ -13,8 +13,8 @@ public sealed class MainForm : Form
     private readonly Label _activeTarget = new() { AutoSize = true, ForeColor = Color.FromArgb(20, 92, 123) };
     private readonly PictureBox _targetPreview = new()
     {
-        Width = 300,
-        Height = 138,
+        Width = 260,
+        Height = 110,
         BorderStyle = BorderStyle.FixedSingle,
         BackColor = Color.White,
         SizeMode = PictureBoxSizeMode.Zoom,
@@ -30,7 +30,8 @@ public sealed class MainForm : Form
     private readonly CheckBox _minimize = new() { Text = "Minimize while recording", Checked = true, AutoSize = true };
     private readonly Button _startButton = new() { Text = "Start recording", AutoSize = true };
     private readonly Button _stopButton = new() { Text = "Stop", AutoSize = true, Enabled = false };
-    private readonly Button _noteButton = new() { Text = "Add step note", AutoSize = true, Enabled = false };
+    private readonly Button _noteButton = new() { Text = "Add milestone note", AutoSize = true, Enabled = false };
+    private readonly ToolTip _toolTip = new();
     private readonly Button _htmlButton = new() { Text = "Generate HTML", AutoSize = true, Enabled = false };
     private readonly Button _skillButton = new() { Text = "Generate skill", AutoSize = true, Enabled = false };
     private readonly Button _folderButton = new() { Text = "Open session folder", AutoSize = true, Enabled = false };
@@ -42,8 +43,8 @@ public sealed class MainForm : Form
     {
         Text = "Workflow Recorder";
         Width = 900;
-        Height = 720;
-        MinimumSize = new Size(720, 520);
+        Height = 820;
+        MinimumSize = new Size(720, 750);
         StartPosition = FormStartPosition.CenterScreen;
         Font = new Font("Segoe UI", 10);
         BackColor = Color.FromArgb(245, 248, 249);
@@ -81,7 +82,6 @@ public sealed class MainForm : Form
         {
             Text = "Record UI actions, semantic keys, compact cursor paths, and event-triggered screenshots for documentation and reusable skills.",
             AutoSize = true,
-            MaximumSize = new Size(780, 0),
             ForeColor = Color.FromArgb(82, 102, 113)
         };
 
@@ -93,19 +93,19 @@ public sealed class MainForm : Form
         fields.Controls.Add(new Label { Text = "Save sessions to", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 1);
         fields.Controls.Add(_outputBox, 1, 1);
         fields.Controls.Add(new Label { Text = "Capture target", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 2);
-        var targetPicker = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, WrapContents = false, Margin = Padding.Empty };
+        var targetPicker = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, WrapContents = true, Margin = Padding.Empty };
         targetPicker.Controls.Add(_targetBox);
         targetPicker.Controls.Add(_refreshTargetsButton);
         fields.Controls.Add(targetPicker, 1, 2);
         fields.Controls.Add(new Label { Text = "Current target", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 3);
         fields.Controls.Add(_activeTarget, 1, 3);
         fields.Controls.Add(new Label { Text = "Target preview", AutoSize = true, Anchor = AnchorStyles.Left }, 0, 4);
-        var preview = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, WrapContents = false, Margin = Padding.Empty };
+        var preview = new FlowLayoutPanel { AutoSize = true, Dock = DockStyle.Fill, WrapContents = true, Margin = Padding.Empty };
         preview.Controls.Add(_targetPreview);
         preview.Controls.Add(_previewStatus);
         fields.Controls.Add(preview, 1, 4);
 
-        var options = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false };
+        var options = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = Padding.Empty };
         options.Controls.Add(_screenshots);
         options.Controls.Add(_cursorPaths);
         options.Controls.Add(_commandKeys);
@@ -115,20 +115,31 @@ public sealed class MainForm : Form
         options.Controls.Add(commandDelay);
         options.Controls.Add(_minimize);
 
-        var buttons = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(0, 12, 0, 12) };
+        var buttons = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, Padding = new Padding(0, 12, 0, 12), WrapContents = true, Margin = Padding.Empty };
         buttons.Controls.AddRange([_startButton, _stopButton, _noteButton, _htmlButton, _skillButton, _folderButton]);
+        _toolTip.SetToolTip(_noteButton, "Add a labelled milestone to the workflow timeline and capture the current target.");
+        _noteButton.AccessibleDescription = "Adds a labelled milestone to the workflow timeline and captures the current target.";
 
-        var header = new Panel { Dock = DockStyle.Top, Height = 545, Padding = new Padding(22, 18, 22, 0) };
-        header.Controls.Add(buttons);
-        header.Controls.Add(options);
-        header.Controls.Add(fields);
-        header.Controls.Add(intro);
-        header.Controls.Add(title);
-        buttons.BringToFront();
-        options.BringToFront();
-        fields.BringToFront();
-        intro.BringToFront();
-        title.BringToFront();
+        var header = new TableLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            ColumnCount = 1,
+            Padding = new Padding(22, 18, 22, 0),
+            Margin = Padding.Empty
+        };
+        header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        header.Controls.Add(title, 0, 0);
+        header.Controls.Add(intro, 0, 1);
+        header.Controls.Add(buttons, 0, 2);
+        header.Controls.Add(options, 0, 3);
+        header.Controls.Add(fields, 0, 4);
+        header.SizeChanged += (_, _) =>
+        {
+            var availableWidth = Math.Max(320, header.ClientSize.Width - header.Padding.Horizontal);
+            intro.MaximumSize = new Size(availableWidth, 0);
+        };
 
         var statusPanel = new Panel { Dock = DockStyle.Bottom, Height = 46, Padding = new Padding(22, 12, 22, 0) };
         statusPanel.Controls.Add(_status);
@@ -340,7 +351,10 @@ public sealed class MainForm : Form
 
     private void AddNote()
     {
-        var note = PromptDialog.Show(this, "Describe the completed step", "Add workflow step note");
+        var note = PromptDialog.Show(
+            this,
+            "What did you just complete? This adds a labelled timeline milestone and captures the current target.",
+            "Add milestone note");
         if (!string.IsNullOrWhiteSpace(note))
         {
             _engine.AddAnnotation(note.Trim(), true);
