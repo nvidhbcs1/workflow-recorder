@@ -19,3 +19,9 @@ jobs:
         run: dotnet build WorkflowRecorder.slnx -c Release
       - name: Smoke test
         run: dotnet run --project tests/WorkflowRecorder.SmokeTests -c Release --no-build
+      - name: Skill installation evaluation
+        run: >-
+          pwsh -NoProfile -File .\tests\Test-SkillInstallation.ps1
+          -Client Both
+          -Mode Isolated
+          -RecorderHome .\src\WorkflowRecorder.Cli\bin\Release\net8.0-windows

@@ -38,9 +38,15 @@ For native Windows or Git Bash, `~/.claude` maps to `%USERPROFILE%\.claude`. For
 
 ## Verify the installation
 
-1. Start a new Codex or Claude Code session.
-2. Invoke the command shown above with a harmless target, for example `notepad`.
-3. Confirm that the agent runs `WorkflowRecorder.Cli.exe record-controlled ...` and asks for an explicit target when none is supplied.
-4. Confirm it does **not** open or operate `WorkflowRecorder.App.exe` unless you explicitly request the GUI.
+Run the post-install evaluator after installing the skill. It checks the actual installed folder, required resources, the client’s explicit invocation syntax, the CLI-first rule, and a runnable CLI.
+
+```powershell
+.\tests\Test-SkillInstallation.ps1 -Client Codex -Mode Installed -RecorderHome C:\path\to\dist\win-x64
+.\tests\Test-SkillInstallation.ps1 -Client ClaudeCode -Mode Installed -RecorderHome C:\path\to\dist\win-x64
+```
+
+Use `-Client Both` when both skills are installed. The CI workflow also runs an isolated-install version of this evaluator so a packaging regression fails before release.
+
+For a final live check, start a new session and invoke the command shown above with a harmless target such as `notepad`. The agent should use `WorkflowRecorder.Cli.exe record-controlled ...` (and request an explicit target if none was given); it should not open `WorkflowRecorder.App.exe` unless you request the GUI.
 
 The skill does not install the recorder executable. If it cannot find the CLI, set `WORKFLOW_RECORDER_HOME` to the extracted `dist/win-x64` folder or provide that folder to the agent.

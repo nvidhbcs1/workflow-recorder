@@ -5,6 +5,8 @@ param(
     [ValidateSet('Codex', 'ClaudeCode')]
     [string]$Client,
 
+    [string]$DestinationRoot,
+
     [switch]$Force
 )
 
@@ -14,9 +16,10 @@ $source = switch ($Client) {
     'Codex' { Join-Path $repositoryRoot 'codex-skill\windows-workflow-recorder' }
     'ClaudeCode' { Join-Path $repositoryRoot 'claude-code\skills\windows-workflow-recorder' }
 }
+$userRoot = if ($DestinationRoot) { [System.IO.Path]::GetFullPath($DestinationRoot) } else { $env:USERPROFILE }
 $targetRoot = switch ($Client) {
-    'Codex' { Join-Path $env:USERPROFILE '.codex\skills' }
-    'ClaudeCode' { Join-Path $env:USERPROFILE '.claude\skills' }
+    'Codex' { Join-Path $userRoot '.codex\skills' }
+    'ClaudeCode' { Join-Path $userRoot '.claude\skills' }
 }
 $target = Join-Path $targetRoot 'windows-workflow-recorder'
 
