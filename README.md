@@ -23,7 +23,7 @@ Each session is stored locally as a portable folder containing `session.json`, `
 2. Enter a descriptive workflow name and choose an output folder.
 3. Choose a **Capture target**: either a specific app window or **Entire screen** for the monitor you want to document. Confirm the choice in **Current target** and the live **Target preview**; select **Refresh windows** if the app was opened after the recorder.
 4. Select **Start recording**. The recorder can minimize itself.
-5. Perform the workflow. Use **Add note** at important milestones to capture intent, such as “Exported the report as PDF.”
+5. Perform the workflow. Use **Add milestone note** at important milestones to capture intent, such as “Exported the report as PDF.” While a GUI recording is active, press `Ctrl+Alt+M` from any app to open the same note dialog immediately.
 6. Return to the recorder and select **Stop recording**.
 7. Generate and review the HTML documentation. Remove or redact private screenshots before sharing.
 8. Generate a skill only after checking that the timeline describes a repeatable, safe procedure.
@@ -51,7 +51,7 @@ This uses a temporary Edge profile inside the session folder and does not alter 
 
 ## Privacy and limits
 
-- Ordinary typed text is intentionally excluded. Shortcuts such as `Ctrl+T` and `Ctrl+W` are recorded.
+- Ordinary typed text is intentionally excluded. Shortcuts such as `Ctrl+T` and `Ctrl+W` are recorded. `Ctrl+Alt+M` is reserved by an active GUI recording to open the milestone-note dialog, and is not stored as a workflow action.
 - Password fields reported by UI Automation are marked sensitive and do not receive screenshots.
 - Add sensitive apps to `ExcludedProcesses` in `RecorderSettings` when integrating the core library.
 - UI Automation provides semantic controls in many Win32, WPF, and Chromium surfaces, but not every app exposes useful names or automation IDs. Screenshots and annotations fill those gaps.

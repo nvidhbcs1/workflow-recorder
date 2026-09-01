@@ -40,6 +40,7 @@ public sealed class InputHookService : IDisposable
     public event EventHandler<MouseClickEvent>? MouseClicked;
     public event EventHandler<MousePathEvent>? MousePathCompleted;
     public event EventHandler<ShortcutEvent>? ShortcutPressed;
+    public event EventHandler? MilestoneNoteRequested;
 
     public InputHookService()
     {
@@ -183,7 +184,18 @@ public sealed class InputHookService : IDisposable
             }
             else if ((msg is WmKeyDown or WmSysKeyDown) && _pressed.Add(vk))
             {
-                var shortcut = DescribeShortcut((Keys)vk, DateTimeOffset.UtcNow);
+                var key = (Keys)vk;
+                var ctrl = IsDown(Keys.LControlKey) || IsDown(Keys.RControlKey);
+                var alt = IsDown(Keys.LMenu) || IsDown(Keys.RMenu);
+                var shift = IsDown(Keys.LShiftKey) || IsDown(Keys.RShiftKey);
+                var win = IsDown(Keys.LWin) || IsDown(Keys.RWin);
+                if (IsMilestoneNoteHotkey(key, ctrl, alt, shift, win))
+                {
+                    MilestoneNoteRequested?.Invoke(this, EventArgs.Empty);
+                    return CallNextHookEx(_keyboardHook, code, message, parameter);
+                }
+
+                var shortcut = DescribeShortcut(key, DateTimeOffset.UtcNow);
                 if (shortcut is not null)
                 {
                     ShortcutPressed?.Invoke(this, shortcut);
@@ -252,6 +264,13 @@ public sealed class InputHookService : IDisposable
             return null;
         }
 
+        // This is reserved by the GUI for adding a milestone note while recording.
+        // Do not create a misleading keyboard step or screenshot for the hotkey itself.
+        if (IsMilestoneNoteHotkey(key, ctrl, alt, shift, win))
+        {
+            return null;
+        }
+
         var commandKey = key is Keys.Enter or Keys.Tab or Keys.Escape or Keys.Delete or Keys.Insert or
             Keys.Up or Keys.Down or Keys.Left or Keys.Right or Keys.Home or Keys.End or Keys.Prior or Keys.Next ||
             key is >= Keys.F1 and <= Keys.F24;
@@ -271,6 +290,9 @@ public sealed class InputHookService : IDisposable
             : (!ctrl && !alt && !win && commandKey ? "command-key" : "shortcut");
         return new ShortcutEvent(string.Join('+', parts), kind, timestamp);
     }
+
+    public static bool IsMilestoneNoteHotkey(Keys key, bool ctrl, bool alt, bool shift, bool win) =>
+        ctrl && alt && !shift && !win && key == Keys.M;
 
     public static bool ShouldRecordCursorPath(int distancePixels, int durationMilliseconds) =>
         distancePixels >= 90 && durationMilliseconds is > 0 and <= 5000;

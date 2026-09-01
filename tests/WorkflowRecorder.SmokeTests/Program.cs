@@ -200,6 +200,9 @@ static void RunSemanticInputRegression()
     var typedLetter = InputHookService.ClassifyKeyForRecording(Keys.A, false, false, false, false, timestamp);
     Assert(typedLetter is null, "Ordinary typed letters must not be recorded.");
 
+    var milestoneHotkey = InputHookService.ClassifyKeyForRecording(Keys.M, true, true, false, false, timestamp);
+    Assert(milestoneHotkey is null, "Ctrl+Alt+M must be reserved for the GUI milestone-note hotkey.");
+
     var backspace = InputHookService.ClassifyKeyForRecording(Keys.Back, false, false, false, false, timestamp);
     Assert(backspace is null, "Ordinary text editing keys must not be recorded as workflow steps.");
 

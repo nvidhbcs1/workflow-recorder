@@ -14,6 +14,7 @@ public sealed class RecorderEngine : IDisposable
     private nint _pinnedWindow;
     private int _pinnedProcessId;
     private System.Windows.Forms.Screen? _pinnedScreen;
+    private int _shortcutRecordingSuspended;
     private bool _disposed;
 
     public bool IsRecording => _store is not null;
@@ -24,14 +25,17 @@ public sealed class RecorderEngine : IDisposable
         : PinnedWindow is { IsValid: true } window
             ? $"{window.ProcessName} — {window.Title}"
             : null;
+    public bool ShortcutRecordingSuspended => Volatile.Read(ref _shortcutRecordingSuspended) != 0;
     public event EventHandler<WorkflowEvent>? EventRecorded;
     public event EventHandler<string>? StatusChanged;
+    public event EventHandler? MilestoneNoteRequested;
 
     public RecorderEngine()
     {
         _hooks.MouseClicked += OnMouseClicked;
         _hooks.MousePathCompleted += OnMousePathCompleted;
         _hooks.ShortcutPressed += OnShortcutPressed;
+        _hooks.MilestoneNoteRequested += (_, _) => MilestoneNoteRequested?.Invoke(this, EventArgs.Empty);
     }
 
     public RecordingSession Start(string name, RecorderSettings settings)
@@ -43,6 +47,7 @@ public sealed class RecorderEngine : IDisposable
         }
 
         _settings = settings;
+        SetShortcutRecordingSuspended(false);
         _pinnedScreen = null;
         var isScreenTarget = settings.CaptureTargetKind == CaptureTargetKind.Screen;
         _pinnedWindow = isScreenTarget || settings.TargetWindowHandle is not long handle ? 0 : (nint)handle;
@@ -92,6 +97,7 @@ public sealed class RecorderEngine : IDisposable
             return null;
         }
 
+        SetShortcutRecordingSuspended(false);
         _hooks.Stop();
         if (_windowTimer is not null)
         {
@@ -128,6 +134,9 @@ public sealed class RecorderEngine : IDisposable
             TimestampUtc = DateTimeOffset.UtcNow
         }, captureScreenshot));
     }
+
+    public void SetShortcutRecordingSuspended(bool suspended) =>
+        Volatile.Write(ref _shortcutRecordingSuspended, suspended ? 1 : 0);
 
     public WindowContext PinTargetWindow(nint handle)
     {
@@ -198,6 +207,10 @@ public sealed class RecorderEngine : IDisposable
     private void OnShortcutPressed(object? sender, ShortcutEvent shortcut)
     {
         if (_store is null)
+        {
+            return;
+        }
+        if (ShortcutRecordingSuspended)
         {
             return;
         }

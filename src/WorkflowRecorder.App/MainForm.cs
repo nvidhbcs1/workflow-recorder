@@ -30,7 +30,7 @@ public sealed class MainForm : Form
     private readonly CheckBox _minimize = new() { Text = "Minimize while recording", Checked = true, AutoSize = true };
     private readonly Button _startButton = new() { Text = "Start recording", AutoSize = true };
     private readonly Button _stopButton = new() { Text = "Stop", AutoSize = true, Enabled = false };
-    private readonly Button _noteButton = new() { Text = "Add milestone note", AutoSize = true, Enabled = false };
+    private readonly Button _noteButton = new() { Text = "Add milestone note (Ctrl+Alt+M)", AutoSize = true, Enabled = false };
     private readonly ToolTip _toolTip = new();
     private readonly Button _htmlButton = new() { Text = "Generate HTML", AutoSize = true, Enabled = false };
     private readonly Button _skillButton = new() { Text = "Generate skill", AutoSize = true, Enabled = false };
@@ -38,6 +38,7 @@ public sealed class MainForm : Form
     private readonly Label _status = new() { AutoSize = true, ForeColor = Color.FromArgb(64, 81, 91) };
     private readonly ListView _events = new() { Dock = DockStyle.Fill, View = View.Details, FullRowSelect = true };
     private string? _lastSessionDirectory;
+    private bool _milestoneDialogOpen;
 
     public MainForm()
     {
@@ -117,8 +118,8 @@ public sealed class MainForm : Form
 
         var buttons = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true, Padding = new Padding(0, 12, 0, 12), WrapContents = true, Margin = Padding.Empty };
         buttons.Controls.AddRange([_startButton, _stopButton, _noteButton, _htmlButton, _skillButton, _folderButton]);
-        _toolTip.SetToolTip(_noteButton, "Add a labelled milestone to the workflow timeline and capture the current target.");
-        _noteButton.AccessibleDescription = "Adds a labelled milestone to the workflow timeline and captures the current target.";
+        _toolTip.SetToolTip(_noteButton, "Add a labelled milestone to the workflow timeline and capture the current target. While recording, press Ctrl+Alt+M from any app to open this note dialog.");
+        _noteButton.AccessibleDescription = "Adds a labelled milestone to the workflow timeline and captures the current target. Ctrl+Alt+M also opens this dialog while recording.";
 
         var header = new TableLayoutPanel
         {
@@ -167,6 +168,13 @@ public sealed class MainForm : Form
         };
         _engine.EventRecorded += (_, item) => BeginInvoke(() => AddEventRow(item));
         _engine.StatusChanged += (_, message) => BeginInvoke(() => _status.Text = message);
+        _engine.MilestoneNoteRequested += (_, _) =>
+        {
+            if (!IsDisposed && IsHandleCreated)
+            {
+                BeginInvoke(AddNoteFromHotkey);
+            }
+        };
         FormClosed += (_, _) =>
         {
             _previewTimer.Stop();
@@ -351,13 +359,26 @@ public sealed class MainForm : Form
 
     private void AddNote()
     {
-        var note = PromptDialog.Show(
-            this,
-            "What did you just complete? This adds a labelled timeline milestone and captures the current target.",
-            "Add milestone note");
-        if (!string.IsNullOrWhiteSpace(note))
+        if (!_engine.IsRecording)
         {
-            _engine.AddAnnotation(note.Trim(), true);
+            return;
+        }
+
+        _engine.SetShortcutRecordingSuspended(true);
+        try
+        {
+            var note = PromptDialog.Show(
+                this,
+                "What did you just complete? This adds a labelled timeline milestone and captures the current target.",
+                "Add milestone note");
+            if (!string.IsNullOrWhiteSpace(note))
+            {
+                _engine.AddAnnotation(note.Trim(), true);
+            }
+        }
+        finally
+        {
+            _engine.SetShortcutRecordingSuspended(false);
         }
     }
 
@@ -422,6 +443,29 @@ public sealed class MainForm : Form
         _folderButton.Enabled = _lastSessionDirectory is not null;
     }
 
+    private void AddNoteFromHotkey()
+    {
+        if (!_engine.IsRecording || _milestoneDialogOpen)
+        {
+            return;
+        }
+
+        _milestoneDialogOpen = true;
+        try
+        {
+            if (WindowState == FormWindowState.Minimized)
+            {
+                WindowState = FormWindowState.Normal;
+            }
+            Activate();
+            AddNote();
+        }
+        finally
+        {
+            _milestoneDialogOpen = false;
+        }
+    }
+
     private void AddEventRow(WorkflowEvent item)
     {
         var detail = item.Note ?? item.Control?.Name ?? item.Shortcut ??
@@ -453,6 +497,7 @@ public sealed class MainForm : Form
             Close();
         }
     }
+
 }
 
 internal interface ICaptureTargetItem
