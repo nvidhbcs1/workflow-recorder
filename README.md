@@ -89,7 +89,12 @@ The recorder has no built-in account, telemetry, cloud sync, or automatic upload
 
 ## Use with Codex
 
-The reusable Codex skill is versioned in [`codex-skill/windows-workflow-recorder`](codex-skill/windows-workflow-recorder). Copy that folder into `C:\Users\<your-user>\.codex\skills\` and restart Codex. It can inspect local sessions, generate reviewed documentation, create reusable skills, and prepare safe Computer Use handoffs.
+The repository ships separate ready-to-install packages for Codex and Claude Code. Both choose `WorkflowRecorder.Cli.exe` by default for recording; the GUI is used only when explicitly requested.
+
+- **Codex:** install `codex-skill/windows-workflow-recorder` under `C:\Users\<your-user>\.codex\skills\`, then invoke it with `$windows-workflow-recorder <request>`. It is not a `/windows-workflow-recorder` slash command.
+- **Claude Code:** install `claude-code/skills/windows-workflow-recorder` under `~/.claude/skills/`, then invoke it with `/windows-workflow-recorder <request>`.
+
+Use [`docs/SKILL-INSTALLATION.md`](docs/SKILL-INSTALLATION.md) or `scripts/Install-WorkflowRecorderSkill.ps1` for the exact commands and a post-install check.
 
 ## Project hygiene
 
